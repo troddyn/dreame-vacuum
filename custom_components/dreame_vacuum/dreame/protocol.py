@@ -319,8 +319,12 @@ class DreameVacuumDreameHomeCloudProtocol:
                             self._client.on_disconnect = DreameVacuumDreameHomeCloudProtocol._on_client_disconnect
                             self._client.on_message = DreameVacuumDreameHomeCloudProtocol._on_client_message
                             self._client.reconnect_delay_set(1, 15)
-                            self._client.tls_set(cert_reqs=ssl.CERT_NONE)
-                            self._client.tls_insecure_set(True)
+                            # Verify the broker's TLS certificate and hostname against the
+                            # system trust store. Dreame/Alibaba Cloud IoT brokers present
+                            # publicly-signed certs, so this validates without pinning.
+                            # Revert to `tls_set(cert_reqs=ssl.CERT_NONE)` +
+                            # `tls_insecure_set(True)` only if a regional broker uses a private CA.
+                            self._client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
                             self._set_client_key()
                             self._client.connect_timeout = 10
                             self._client.disable_logger()
