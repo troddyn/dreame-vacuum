@@ -319,12 +319,14 @@ class DreameVacuumDreameHomeCloudProtocol:
                             self._client.on_disconnect = DreameVacuumDreameHomeCloudProtocol._on_client_disconnect
                             self._client.on_message = DreameVacuumDreameHomeCloudProtocol._on_client_message
                             self._client.reconnect_delay_set(1, 15)
-                            # Verify the broker's TLS certificate and hostname against the
-                            # system trust store. Dreame/Alibaba Cloud IoT brokers present
-                            # publicly-signed certs, so this validates without pinning.
-                            # Revert to `tls_set(cert_reqs=ssl.CERT_NONE)` +
-                            # `tls_insecure_set(True)` only if a regional broker uses a private CA.
-                            self._client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+                            # NOTE: the Dreame cloud MQTT broker presents a SELF-SIGNED
+                            # certificate, so it cannot be validated against the system trust
+                            # store (CERT_REQUIRED fails: CERTIFICATE_VERIFY_FAILED). Upstream
+                            # therefore disables verification. The stronger fix is to pin the
+                            # broker's self-signed CA via tls_set(ca_certs=...); until that CA
+                            # is captured this matches upstream behaviour so the device connects.
+                            self._client.tls_set(cert_reqs=ssl.CERT_NONE)
+                            self._client.tls_insecure_set(True)
                             self._set_client_key()
                             self._client.connect_timeout = 10
                             self._client.disable_logger()
