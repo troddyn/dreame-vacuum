@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import hashlib
 import json
@@ -316,13 +317,19 @@ class DreameVacuumDreameHomeCloudProtocol:
                             self._client.on_disconnect = DreameVacuumDreameHomeCloudProtocol._on_client_disconnect
                             self._client.on_message = DreameVacuumDreameHomeCloudProtocol._on_client_message
                             self._client.reconnect_delay_set(1, 15)
-                            # NOTE: the Dreame cloud MQTT broker presents a SELF-SIGNED
-                            # certificate, so it cannot be validated against the system trust
-                            # store (CERT_REQUIRED fails: CERTIFICATE_VERIFY_FAILED). Upstream
-                            # therefore disables verification. The stronger fix is to pin the
-                            # broker's self-signed CA via tls_set(ca_certs=...); until that CA
-                            # is captured this matches upstream behaviour so the device connects.
-                            self._client.tls_set(cert_reqs=ssl.CERT_NONE)
+                            # Cert-pinning (troddyn fork). The Dreame/Mova broker presents a
+                            # SELF-SIGNED private CA that impersonates the GlobalSign name and is
+                            # in no public trust store, so upstream disabled verification entirely
+                            # (CERT_NONE) — leaving the MQTT control channel open to MITM. Instead
+                            # we pin that CA: tls_set(ca_certs=dreame_ca.pem) + CERT_REQUIRED makes
+                            # paho require the broker's chain to validate against the bundled CA,
+                            # so a MITM would need Dreame's private key. Hostname matching stays
+                            # off (tls_insecure_set) because the per-device broker host varies and
+                            # is not always covered by the leaf SAN — the CA pin is the protection.
+                            # If Dreame rotates this CA the device will stop connecting; re-capture
+                            # it into dreame_ca.pem (see the v2.0.0b27 diagnostic build).
+                            _ca_bundle = os.path.join(os.path.dirname(__file__), "dreame_ca.pem")
+                            self._client.tls_set(ca_certs=_ca_bundle, cert_reqs=ssl.CERT_REQUIRED)
                             self._client.tls_insecure_set(True)
                             self._set_client_key()
                             self._client.connect_timeout = 10

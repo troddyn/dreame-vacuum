@@ -20,5 +20,5 @@
     "mini-racer==0.14.1",
     "paho-mqtt"
   ],
-  "version": "v2.0.0b26"
+  "version": "v2.0.0b28"
 }
